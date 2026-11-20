@@ -406,14 +406,34 @@ MODULE env_base_input
     ! system = simplified regular dielectric defined to be outside a distance
     !          solvent_distance from the specified system
     !
+    CHARACTER(LEN=80) :: switching_function = 'sin'
+    CHARACTER(LEN=80) :: switching_function_allowed(2)
+    !
+    DATA switching_function_allowed/'erfc', 'sin'/
+    !
+    ! switching function mapping the density onto the solvent boundary
+    ! (used only when solvent_mode = 'electronic' or 'full')
+    !
+    ! sin  = original SCCS switching function, defined by rhomax and rhomin
+    !
+    ! erfc = complementary error function of ln(rho), defined by rhothr and
+    !        rhospread, as in Mathew et al. (https://doi.org/10.1063/1.4865107)
+    !
     !------------------------------------------------------------------------------------
     ! Soft solvent boundary (electronic) parameters
     !
     REAL(DP) :: rhomax = 0.005D0
     ! first parameter of the sw function, roughly corresponding to the density
-    ! threshold of the solvation model
+    ! threshold of the solvation model (switching_function = 'sin')
     !
-    REAL(DP) :: rhomin = 0.0001D0 ! second parameter of the sw function
+    REAL(DP) :: rhomin = 0.0001D0
+    ! second parameter of the sw function (switching_function = 'sin')
+    !
+    REAL(DP) :: rhothr = 0.000685D0
+    ! density at which the erfc sw function equals 0.5 (switching_function = 'erfc')
+    !
+    REAL(DP) :: rhospread = 0.7D0
+    ! spread of the erfc sw function in ln(rho) (switching_function = 'erfc')
     !
     !------------------------------------------------------------------------------------
     ! Rigid solvent boundary (ionic) parameters
@@ -442,15 +462,33 @@ MODULE env_base_input
     ! electrolyte_mode method for calculating the density that sets the onset of
     ! ionic countercharge ( see solvent_mode above )
     !
+    CHARACTER(LEN=80) :: electrolyte_switching_function = 'sin'
+    CHARACTER(LEN=80) :: electrolyte_switching_function_allowed(2)
+    !
+    DATA electrolyte_switching_function_allowed/'erfc', 'sin'/
+    !
+    ! switching function mapping the density onto the Stern boundary
+    ! (used only when electrolyte_mode = 'electronic' or 'full';
+    ! see switching_function above)
+    !
     !------------------------------------------------------------------------------------
     ! Soft Stern boundary (electronic) parameters
     !
     REAL(DP) :: electrolyte_rhomax = 0.005D0
     ! first parameter of the Stern sw function, roughly corresponding
     ! to the density threshold of the ionic countercharge.
+    ! (electrolyte_switching_function = 'sin')
     !
     REAL(DP) :: electrolyte_rhomin = 0.0001D0
-    ! second parameter of the Stern sw function
+    ! second parameter of the Stern sw function (electrolyte_switching_function = 'sin')
+    !
+    REAL(DP) :: electrolyte_rhothr = 0.000685D0
+    ! density at which the erfc Stern sw function equals 0.5
+    ! (electrolyte_switching_function = 'erfc')
+    !
+    REAL(DP) :: electrolyte_rhospread = 0.7D0
+    ! spread of the erfc Stern sw function in ln(rho)
+    ! (electrolyte_switching_function = 'erfc')
     !
     !------------------------------------------------------------------------------------
     ! Rigid Stern boundary (ionic) parameters
@@ -505,12 +543,14 @@ MODULE env_base_input
     !------------------------------------------------------------------------------------
     !
     NAMELIST /boundary/ &
-        solvent_mode, radius_mode, alpha, softness, solvationrad, rhomax, &
-        rhomin, corespread, solvent_distance, solvent_spread, solvent_radius, &
+        solvent_mode, switching_function, radius_mode, alpha, softness, solvationrad, &
+        rhomax, rhomin, rhothr, rhospread, corespread, solvent_distance, &
+        solvent_spread, solvent_radius, &
         radial_scale, radial_spread, filling_threshold, filling_spread, field_aware, &
         field_factor, field_asymmetry, field_max, field_min, electrolyte_mode, &
-        electrolyte_distance, electrolyte_spread, electrolyte_rhomax, &
-        electrolyte_rhomin, electrolyte_alpha, electrolyte_softness, deriv_method, &
+        electrolyte_switching_function, electrolyte_distance, electrolyte_spread, &
+        electrolyte_rhomax, electrolyte_rhomin, electrolyte_rhothr, &
+        electrolyte_rhospread, electrolyte_alpha, electrolyte_softness, deriv_method, &
         deriv_core, sc_distance, sc_spread, deriv_lowpass_p1, deriv_lowpass_p2
     !
     !=---------------------------------------------------------------------------------=!

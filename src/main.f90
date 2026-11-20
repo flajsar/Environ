@@ -1151,8 +1151,9 @@ CONTAINS
             END SELECT
             !
             CALL this%solvent%pre_init( &
-                solvent_mode, setup%lgradient, setup%need_factsqrt, setup%lsurface, &
-                setup%outer_container, deriv_method, environment_cell, 'solvent')
+                solvent_mode, switching_function, setup%lgradient, setup%need_factsqrt, &
+                setup%lsurface, setup%outer_container, deriv_method, environment_cell, &
+                'solvent')
             !
             !----------------------------------------------------------------------------
             ! Boundary awareness
@@ -1173,8 +1174,8 @@ CONTAINS
                 !
             TYPE IS (environ_boundary_electronic)
                 !
-                CALL solvent%init(rhomax, rhomin, this%environment_electrons, &
-                                  this%environment_ions)
+                CALL solvent%init(rhomax, rhomin, rhothr, rhospread, &
+                                  this%environment_electrons, this%environment_ions)
                 !
             TYPE IS (environ_boundary_ionic)
                 !
@@ -1199,9 +1200,10 @@ CONTAINS
         IF (setup%lelectrolyte) THEN
             !
             CALL this%electrolyte%init( &
-                env_electrolyte_ntyp, electrolyte_mode, electrolyte_rhomax, &
-                electrolyte_rhomin, env_static_permittivity, &
-                electrolyte_alpha, electrolyte_softness, electrolyte_distance, &
+                env_electrolyte_ntyp, electrolyte_mode, electrolyte_switching_function, &
+                electrolyte_rhomax, electrolyte_rhomin, electrolyte_rhothr, &
+                electrolyte_rhospread, env_static_permittivity, electrolyte_alpha, &
+                electrolyte_softness, electrolyte_distance, &
                 electrolyte_spread, solvent_radius, radial_scale, radial_spread, &
                 filling_threshold, filling_spread, field_aware, field_factor, &
                 field_asymmetry, field_max, field_min, this%environment_electrons, &

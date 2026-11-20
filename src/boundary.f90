@@ -75,6 +75,7 @@ MODULE class_boundary
         !
         CHARACTER(LEN=80) :: label ! boundary label
         CHARACTER(LEN=80) :: mode ! choice of the interface
+        CHARACTER(LEN=80) :: switching_function ! density-to-boundary switching function
         INTEGER :: update_status = 0
         !
         !--------------------------------------------------------------------------------
@@ -241,6 +242,7 @@ CONTAINS
         !
         this%label = ''
         this%mode = ''
+        this%switching_function = ''
         this%update_status = 0
         !
         this%derivatives_method = ''
@@ -272,13 +274,14 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE pre_init_environ_boundary(this, mode, need_gradient, need_laplacian, &
-                                         need_hessian, cores, deriv_method, cell, label)
+    SUBROUTINE pre_init_environ_boundary(this, mode, switching_function, need_gradient, &
+                                         need_laplacian, need_hessian, cores, &
+                                         deriv_method, cell, label)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        CHARACTER(LEN=*), INTENT(IN) :: mode
+        CHARACTER(LEN=*), INTENT(IN) :: mode, switching_function
         !
         LOGICAL, INTENT(IN) :: need_gradient
         LOGICAL, INTENT(IN) :: need_laplacian
@@ -299,6 +302,7 @@ CONTAINS
         CALL this%pre_create()
         !
         this%mode = mode
+        this%switching_function = switching_function
         !
         IF (PRESENT(label)) this%label = label
         !
@@ -1112,6 +1116,7 @@ CONTAINS
             IF (io%lnode) THEN
                 WRITE (local_unit, 1100)
                 WRITE (local_unit, 1101) this%label, this%mode
+                WRITE (local_unit, 1105) this%switching_function
             END IF
             !
             IF (io%lnode) THEN
@@ -1186,6 +1191,8 @@ CONTAINS
                 " filling spread             = ", F14.7, /, &
                 " solvent radius x rad scale = ", F14.7, /, &
                 " spread of solvent probe    = ", F14.7)
+        !
+1105    FORMAT(" switching function         = ", A20)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE pre_print_environ_boundary

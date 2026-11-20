@@ -1497,13 +1497,30 @@ CONTAINS
             WRITE (io%unit, 1011) TRIM(solvent_mode)
             WRITE (io%unit, 1012) TRIM(deriv_method)
             !
-            IF (this%lelectrolyte) WRITE (io%unit, 1013) TRIM(electrolyte_deriv_method)
+            IF (this%lelectrolyte) THEN
+                WRITE (io%unit, 1013) TRIM(electrolyte_deriv_method)
+                WRITE (io%unit, 10152) TRIM(electrolyte_switching_function)
+                !
+                IF (electrolyte_switching_function == 'erfc') THEN
+                    WRITE (io%unit, 10163) electrolyte_rhothr, electrolyte_rhospread
+                ELSE IF (electrolyte_switching_function == 'sin') THEN
+                    WRITE (io%unit, 10162) electrolyte_rhomax, electrolyte_rhomin
+                END IF
+                !
+            END IF
             !
             WRITE (io%unit, 1014) TRIM(deriv_core)
             !
-            IF (solvent_mode == 'ionic' .OR. solvent_mode == 'full') THEN
+            IF (solvent_mode == 'electronic' .OR. solvent_mode == 'full') THEN
                 WRITE (io%unit, 1015) 'SCCS'
-                WRITE (io%unit, 1016) rhomax, rhomin
+                WRITE (io%unit, 10151) TRIM(switching_function)
+                !
+                IF (switching_function == 'erfc') THEN
+                    WRITE (io%unit, 10161) rhothr, rhospread
+                ELSE IF (switching_function == 'sin') THEN
+                    WRITE (io%unit, 1016) rhomax, rhomin
+                END IF
+                !
             END IF
             !
             IF (solvent_mode == 'ionic') THEN
@@ -1574,9 +1591,20 @@ CONTAINS
 1014    FORMAT(5X, "numerical core for derivatives    = ", A24)
         !
 1015    FORMAT(5X, "switching function adopted        = ", A24)
+10151   FORMAT(5X, "type of switching function        = ", A24)
+10152   FORMAT(5X, "electrolyte switching function    = ", A24)
         !
 1016    FORMAT(5X, "density limit for vacuum region   = ", E24.4, /, &
                5X, "density limit for bulk solvent    = ", E24.4)
+        !
+10161   FORMAT(5X, "density threshold of the erfc     = ", E24.4, /, &
+               5X, "spread of the erfc function       = ", E24.4)
+        !
+10162   FORMAT(5X, "electrolyte density limit vacuum  = ", E24.4, /, &
+               5X, "electrolyte density limit bulk    = ", E24.4)
+        !
+10163   FORMAT(5X, "electrolyte erfc threshold        = ", E24.4, /, &
+               5X, "electrolyte erfc spread           = ", E24.4)
         !
 1017    FORMAT(5X, "soft-sphere radius mode           = ", A24, /, &
                5X, "soft-sphere softness              = ", F24.2, /, &

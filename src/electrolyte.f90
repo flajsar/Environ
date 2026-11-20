@@ -157,7 +157,8 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_environ_electrolyte(this, ntyp, mode, rhomax, rhomin, &
+    SUBROUTINE init_environ_electrolyte(this, ntyp, mode, switching_function, rhomax, &
+                                        rhomin, rhothr, rhospread, &
                                         const, alpha, softness, distance, &
                                         spread, solvent_radius, radial_scale, &
                                         radial_spread, filling_threshold, &
@@ -172,10 +173,11 @@ CONTAINS
         !
         INTEGER, INTENT(IN) :: ntyp, nregions
         LOGICAL, INTENT(IN) :: linearized, field_aware
-        CHARACTER(LEN=*), INTENT(IN) :: mode, electrolyte_entropy, deriv_method
+        CHARACTER(LEN=*), INTENT(IN) :: mode, switching_function, electrolyte_entropy, &
+                                        deriv_method
         !
-        REAL(DP), INTENT(IN) :: rhomax, rhomin, const, distance, spread, &
-                                alpha, softness, temperature, solvent_radius, &
+        REAL(DP), INTENT(IN) :: rhomax, rhomin, rhothr, rhospread, const, distance, &
+                                spread, alpha, softness, temperature, solvent_radius, &
                                 radial_scale, radial_spread, filling_threshold, &
                                 filling_spread, field_factor, field_asymmetry, &
                                 field_max, field_min, cionmax, radius
@@ -220,8 +222,8 @@ CONTAINS
             !
         END SELECT
         !
-        CALL this%boundary%pre_init(mode, .TRUE., .TRUE., .FALSE., cores, deriv_method, &
-                                    cell, 'electrolyte')
+        CALL this%boundary%pre_init(mode, switching_function, .TRUE., .TRUE., .FALSE., &
+                                    cores, deriv_method, cell, 'electrolyte')
         !
         !--------------------------------------------------------------------------------
         ! Boundary awareness
@@ -241,7 +243,7 @@ CONTAINS
         SELECT TYPE (boundary => this%boundary)
             !
         TYPE IS (environ_boundary_electronic)
-            CALL boundary%init(rhomax, rhomin, electrons, ions)
+            CALL boundary%init(rhomax, rhomin, rhothr, rhospread, electrons, ions)
             !
         TYPE IS (environ_boundary_ionic)
             CALL boundary%init(alpha, softness, ions, electrons)

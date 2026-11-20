@@ -63,7 +63,8 @@ MODULE boundary_tools
     !
     PUBLIC :: sfunct0, dsfunct0, &
               sfunct1, dsfunct1, d2sfunct1, &
-              sfunct2, dsfunct2, d2sfunct2
+              sfunct2, dsfunct2, d2sfunct2, &
+              sfunct3, dsfunct3, d2sfunct3
     !
     PUBLIC :: reduced2nnr
     !
@@ -726,6 +727,99 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
     END FUNCTION d2sfunct2
+    !------------------------------------------------------------------------------------
+    !>
+    !! Switching function based on the complementary error function of the
+    !! logarithm of the density
+    !!
+    !! s(x) = 0.5 * erfc(ln(x / xthr) / (spread * sqrt(2)))
+    !!
+    !! s(x) = 1 for x <= 0 (vacuum)
+    !!
+    !------------------------------------------------------------------------------------
+    REAL(DP) FUNCTION sfunct3(x, xthr, spread)
+        !--------------------------------------------------------------------------------
+        !
+        IMPLICIT NONE
+        !
+        REAL(DP) :: x, xthr, spread
+        !
+        REAL(DP) :: arg
+        !
+        !--------------------------------------------------------------------------------
+        !
+        IF (x > 0.D0) THEN
+            arg = LOG(x / xthr) / spread / SQRT(2.D0)
+            sfunct3 = 0.5D0 * environ_erfc(arg)
+        ELSE
+            sfunct3 = 1.D0
+        END IF
+        !
+        !--------------------------------------------------------------------------------
+    END FUNCTION sfunct3
+    !------------------------------------------------------------------------------------
+    !>
+    !! First derivative of sfunct3 with respect to x
+    !!
+    !------------------------------------------------------------------------------------
+    REAL(DP) FUNCTION dsfunct3(x, xthr, spread)
+        !--------------------------------------------------------------------------------
+        !
+        IMPLICIT NONE
+        !
+        REAL(DP) :: x, xthr, spread
+        !
+        REAL(DP) :: arg
+        !
+        !--------------------------------------------------------------------------------
+        !
+        IF (x > 0.D0) THEN
+            arg = LOG(x / xthr) / spread / SQRT(2.D0)
+            !
+            IF (ABS(arg) > 6.D0) THEN ! 6.D0 is the threshold of environ_erfc(x)
+                dsfunct3 = 0.D0
+            ELSE
+                dsfunct3 = -EXP(-arg**2) / sqrtpi / spread / SQRT(2.D0) / x
+            END IF
+            !
+        ELSE
+            dsfunct3 = 0.D0
+        END IF
+        !
+        !--------------------------------------------------------------------------------
+    END FUNCTION dsfunct3
+    !------------------------------------------------------------------------------------
+    !>
+    !! Second derivative of sfunct3 with respect to x
+    !!
+    !------------------------------------------------------------------------------------
+    REAL(DP) FUNCTION d2sfunct3(x, xthr, spread)
+        !--------------------------------------------------------------------------------
+        !
+        IMPLICIT NONE
+        !
+        REAL(DP) :: x, xthr, spread
+        !
+        REAL(DP) :: arg
+        !
+        !--------------------------------------------------------------------------------
+        !
+        IF (x > 0.D0) THEN
+            arg = LOG(x / xthr) / spread / SQRT(2.D0)
+            !
+            IF (ABS(arg) > 6.D0) THEN ! 6.D0 is the threshold of environ_erfc(x)
+                d2sfunct3 = 0.D0
+            ELSE
+                d2sfunct3 = EXP(-arg**2) * (LOG(x / xthr) + spread**2) / &
+                            SQRT(2.D0) / sqrtpi / spread**3 / x**2
+            END IF
+            !
+        ELSE
+            d2sfunct3 = 0.D0
+        END IF
+        !
+        !--------------------------------------------------------------------------------
+    END FUNCTION d2sfunct3
     !------------------------------------------------------------------------------------
     !>
     !! @brief Maps reduced arrays to size of nnr

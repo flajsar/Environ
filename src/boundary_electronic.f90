@@ -71,6 +71,8 @@ MODULE class_boundary_electronic
         !
         REAL(DP) :: rhomax
         REAL(DP) :: rhomin
+        REAL(DP) :: rhothr
+        REAL(DP) :: rhospread
         REAL(DP) :: fact
         !
         TYPE(environ_density) :: density
@@ -127,6 +129,8 @@ CONTAINS
         !
         this%rhomax = 0.D0
         this%rhomin = 0.D0
+        this%rhothr = 0.D0
+        this%rhospread = 0.D0
         this%fact = 0.D0
         !
         NULLIFY (this%electrons)
@@ -138,17 +142,15 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_environ_boundary(this, rhomax, rhomin, electrons, ions)
+    SUBROUTINE init_environ_boundary(this, rhomax, rhomin, rhothr, rhospread, &
+                                     electrons, ions)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        !
+        REAL(DP), INTENT(IN) :: rhomax, rhomin, rhothr, rhospread
         TYPE(environ_electrons), TARGET, INTENT(IN) :: electrons
         TYPE(environ_ions), OPTIONAL, TARGET, INTENT(IN) :: ions
-        !
-        REAL(DP), INTENT(IN) :: rhomax
-        REAL(DP), INTENT(IN) :: rhomin
         !
         CLASS(environ_boundary_electronic), INTENT(INOUT) :: this
         !
@@ -160,6 +162,8 @@ CONTAINS
         !
         this%rhomax = rhomax
         this%rhomin = rhomin
+        this%rhothr = rhothr
+        this%rhospread = rhospread
         this%fact = LOG(rhomax / rhomin)
         !
         this%electrons => electrons
@@ -321,7 +325,7 @@ CONTAINS
         !
         CLASS(environ_boundary_electronic), TARGET, INTENT(INOUT) :: this
         !
-        REAL(DP), POINTER :: rhomax, rhomin, fact
+        REAL(DP), POINTER :: rhomax, rhomin, fact, rhothr, rhospread
         !
         TYPE(environ_density), POINTER :: denloc
         TYPE(environ_hessian), POINTER :: hessloc
@@ -343,6 +347,8 @@ CONTAINS
         !
         rhomax => this%rhomax
         rhomin => this%rhomin
+        rhothr => this%rhothr
+        rhospread => this%rhospread
         fact => this%fact
         !
         !--------------------------------------------------------------------------------
@@ -359,11 +365,28 @@ CONTAINS
             !
             !----------------------------------------------------------------------------
             !
-            DO i = 1, cell%ir_end
-                scal%of_r(i) = 1.D0 - sfunct1(rho(i), rhomax, rhomin, fact)
-                dscal%of_r(i) = -dsfunct1(rho(i), rhomax, rhomin, fact)
-                d2scal%of_r(i) = -d2sfunct1(rho(i), rhomax, rhomin, fact)
-            END DO
+            SELECT CASE (this%switching_function)
+                !
+            CASE ('erfc')
+                !
+                DO i = 1, cell%ir_end
+                    scal%of_r(i) = 1.D0 - sfunct3(rho(i), rhothr, rhospread)
+                    dscal%of_r(i) = -dsfunct3(rho(i), rhothr, rhospread)
+                    d2scal%of_r(i) = -d2sfunct3(rho(i), rhothr, rhospread)
+                END DO
+                !
+            CASE ('sin')
+                !
+                DO i = 1, cell%ir_end
+                    scal%of_r(i) = 1.D0 - sfunct1(rho(i), rhomax, rhomin, fact)
+                    dscal%of_r(i) = -dsfunct1(rho(i), rhomax, rhomin, fact)
+                    d2scal%of_r(i) = -d2sfunct1(rho(i), rhomax, rhomin, fact)
+                END DO
+                !
+            CASE DEFAULT
+                CALL io%error(routine, "Unrecognized switching function", 1)
+                !
+            END SELECT
             !
             !----------------------------------------------------------------------------
             ! Compute boundary derivatives, if needed
@@ -551,9 +574,18 @@ CONTAINS
         !--------------------------------------------------------------------------------
         !
         IF (io%lnode) THEN
-            WRITE (local_unit, 1100) this%rhomax, this%rhomin
             !
-            IF (local_verbose >= 3) WRITE (local_unit, 1101) this%fact
+            SELECT CASE (this%switching_function)
+                !
+            CASE ('erfc')
+                WRITE (local_unit, 1103) this%rhothr, this%rhospread
+                !
+            CASE ('sin')
+                WRITE (local_unit, 1100) this%rhomax, this%rhomin
+                !
+                IF (local_verbose >= 3) WRITE (local_unit, 1101) this%fact
+                !
+            END SELECT
             !
         END IF
         !
@@ -584,6 +616,10 @@ CONTAINS
 1101    FORMAT(" log(rhomax/rhomin)         = ", F14.7)
         !
 1102    FORMAT(/, " adding fictitious core-electrons")
+        !
+1103    FORMAT(/, " using the erfc switching function:", /, &
+                " rhothr                     = ", F14.7, /, &
+                " rhospread                  = ", F14.7)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE print_environ_boundary

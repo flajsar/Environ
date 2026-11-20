@@ -340,6 +340,9 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
                 For electrons-dependent interfaces (self-consistent continuum solvation, SCCS), set soft
                 interface parameters to the optimal values (rhomax = 0.005; rhomin = 0.0001)
                 derived in O. Andreussi, I. Dabo and N. Marzari, J. Chem. Phys. 136 064102 (2012).
+                With switching_function = 'erfc', use rhothr = 0.000685 and rhospread = 0.7,
+                obtained by fitting the erfc switching function to the sin one with these
+                rhomax and rhomin.
                 For ions-dependent interfaces (soft-sphere continuum solvation, SSCS), set rigid
                 interface parameter to the optimal value (alpha = 1.12) derived in
                 G. Fisicaro et al. J. Chem. Theory Comput. 13, 8, 3829 (2017).
@@ -351,6 +354,9 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
                 SCCS parameters (env_pressure = 0.125 GPa; env_surface_tension = 5.0 dyn/cm;
                 rhomax = 0.0035;  rhomin = 0.0002) were derived in C. Dupont, O. Andreussi and
                 N. Marzari, J. Chem. Phys. 139, 214110 (2013)
+                With switching_function = 'erfc', use rhothr = 0.000832 and rhospread = 0.535,
+                obtained by fitting the erfc switching function to the sin one with these
+                rhomax and rhomin.
                 SSCS parameters (env_pressure = -0.35 GPa; env_surface_tension = 50.0 dyn/cm;
                 alpha = 1.10) were derived in G. Fisicaro et al. J. Chem. Theory Comput.
                 13, 8, 3829 (2017).
@@ -362,6 +368,9 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
                 SCCS parameters (env_pressure = 0.45 GPa; env_surface_tension = 0.0 dyn/cm;
                 rhomax = 0.0155;  rhomin = 0.0024) were derived in C. Dupont, O. Andreussi and
                 N. Marzari, J. Chem. Phys. 139, 214110 (2013)
+                With switching_function = 'erfc', use rhothr = 0.00616 and rhospread = 0.356,
+                obtained by fitting the erfc switching function to the sin one with these
+                rhomax and rhomin.
                 SSCS parameters (env_pressure = -0.35 GPa; env_surface_tension = 50.0 dyn/cm;
                 alpha = 0.98) were derived in G. Fisicaro et al. J. Chem. Theory Comput.
                 13, 8, 3829 (2017).
@@ -628,7 +637,8 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
             default { 0.005D0 }
             info {
             First parameter of the density-dependent interface function, roughly corresponding to the 
-            density threshold of the continuum model. Used for the electrolyte interface.
+            density threshold of the continuum model. Used for the electrolyte interface when
+            electrolyte_switching_function = 'sin'.
             }
             status { OPTIONAL }
         }
@@ -636,8 +646,26 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
         var electrolyte_rhomin -type REAL {
             default { 0.0001D0 }
             info {
-            Second parameter of the density-dependent interface function, when stype=1. Used for the 
-            electrolyte interface.
+            Second parameter of the density-dependent interface function. Used for the electrolyte
+            interface when electrolyte_switching_function = 'sin'.
+            }
+            status { OPTIONAL }
+        }
+
+        var electrolyte_rhospread -type REAL {
+            default { 0.7D0 }
+            info {
+            Spread, in ln(rho), of the 'erfc' density-dependent interface function. Used for the
+            electrolyte interface when electrolyte_switching_function = 'erfc'. Must be > 0.
+            }
+            status { OPTIONAL }
+        }
+
+        var electrolyte_rhothr -type REAL {
+            default { 0.000685D0 }
+            info {
+            Density at which the 'erfc' density-dependent interface function equals 0.5. Used for
+            the electrolyte interface when electrolyte_switching_function = 'erfc'. Must be > 0.
             }
             status { OPTIONAL }
         }
@@ -660,11 +688,17 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
             status { OPTIONAL }
         }
 
-        var electrolyte_tbeta -type REAL {
-            default { 4.8D0 }
+        var electrolyte_switching_function -type CHARACTER {
+            default { 'sin' }
             info {
-            Second parameter of the density-dependent interface function, when stype=0. Used for the
-            electrolyte interface.
+            Switching function used to build the electrolyte interface from the density. Only used
+            when electrolyte_mode = 'electronic' | 'full'. Options are the same as for
+            switching_function:
+
+            'sin'  : Optimally smooth switching function from the SCCS method of Andreussi et al., parameters electrolyte_rhomax and
+                     electrolyte_rhomin
+            'erfc' : complementary error function of ln(rho), parameters electrolyte_rhothr and
+                     electrolyte_rhospread
             }
             status { OPTIONAL }
         }
@@ -729,46 +763,6 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
             status { OPTIONAL }
         }
 
-        var ifdtype -type INTEGER {
-            default { 1 }
-            info {
-            The gradient of the dielectric function is computed in real-space using finite differences.
-            Different finite differences schemes have been implemented following:
-
-            P. Holoborodko, Smooth noise robust differentiators, 2008
-            http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators
-
-            Each scheme can exploit different numbers of points of the real-space grid (as defined by nfdpoint).
-
-            ifdtype .EQ. 1 : Central differences
-            ifdtype .EQ. 2 : Low-noise Lanczos (m=2)
-            ifdtype .EQ. 3 : Low-noise Lanczos (m=4)
-            ifdtype .EQ. 4 : Smooth noise-robust (n=2)
-            ifdtype .EQ. 5 : Smooth noise-robust (n=4)
-
-            Central differences are used by default and have been tested more deeply. The other schemes 
-            work fine, but are not deeply tested in terms of performances.
-            }
-            status { OPTIONAL }
-        }
-
-        var nfdpoint -type INTEGER {
-            default { 2 }
-            info {
-            Number of point from the real-space grid, to be used by the different finite-difference schemes 
-            to compute gradients.
-            Number of points = 2 * nfdpoint + 1
-            e.g. ifdtype.EQ.1 .AND. nfdpoint.EQ.1 correspond to central differences with three points
-
-            IMPORTANT: nfdpoint .EQ. 1 seems to be enough for most applications, but more refined 
-            finite-difference schemes are needed (nfdpoint.EQ.2 is enough) for energy conservation 
-            in MD simulations in continuum dielectric.
-
-            See test case reported in O. Andreussi, I. Dabo and N. Marzari, J. Chem. Phys. 136 064102 (2012)
-            }
-            status { IMPORTANT }
-        }
-
         var radial_scale -type REAL {
             default { 2.D0 }
             info {
@@ -804,8 +798,8 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
         var rhomax -type REAL {
             default { see below }
             info {
-            First parameter of the density-dependent interface function, roughly corresponding to 
-            the density threshold of the continuum model.
+            First parameter of the density-dependent interface function, roughly corresponding to
+            the density threshold of the continuum model. Used when switching_function = 'sin'.
                         
             DEFAULT:
 
@@ -814,7 +808,6 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
                 environ_type .EQ. water-cation           : 0.0035D0
                 environ_type .EQ. water-anion            : 0.0155D0
 
-            solvent_mode .EQ. ionic : 0.005D0
             }
             status { OPTIONAL }
         }
@@ -822,8 +815,9 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
         var rhomin -type REAL {
             default { see below }
             info {
-            Second parameter of the density-dependent interface function, when stype=1.
-                                    
+            Second parameter of the density-dependent interface function. Used when
+            switching_function = 'sin'.
+
             DEFAULT:
 
             solvent_mode .EQ. electronic | full :
@@ -831,7 +825,50 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
                 environ_type .EQ. water-cation           : 0.0002D0
                 environ_type .EQ. water-anion            : 0.0024D0
 
-            solvent_mode .EQ. ionic : 0.0001D0
+            }
+            status { OPTIONAL }
+        }
+
+        var rhospread -type REAL {
+            default { see below }
+            info {
+            Spread, in ln(rho), of the 'erfc' density-dependent interface function. Used when
+            switching_function = 'erfc'. Must be > 0.
+
+            DEFAULT:
+
+            solvent_mode .EQ. electronic | full :
+                environ_type .EQ. input | vacuum | water : 0.7D0
+                environ_type .EQ. water-cation           : 0.535D0
+                environ_type .EQ. water-anion            : 0.356D0
+
+            The environ_type defaults were obtained by fitting the erfc switching function to
+            the sin switching function with the corresponding rhomax and rhomin.
+
+            If environ_type .EQ. water | water-cation | water-anion, the value is set by
+            environ_type and any input value is ignored.
+            }
+            status { OPTIONAL }
+        }
+
+        var rhothr -type REAL {
+            default { see below }
+            info {
+            Density at which the 'erfc' density-dependent interface function equals 0.5. Used when
+            switching_function = 'erfc'. Must be > 0.
+
+            DEFAULT:
+
+            solvent_mode .EQ. electronic | full :
+                environ_type .EQ. input | vacuum | water : 0.000685D0
+                environ_type .EQ. water-cation           : 0.000832D0
+                environ_type .EQ. water-anion            : 0.00616D0
+
+            The environ_type defaults were obtained by fitting the erfc switching function to
+            the sin switching function with the corresponding rhomax and rhomin.
+
+            If environ_type .EQ. water | water-cation | water-anion, the value is set by
+            environ_type and any input value is ignored.
             }
             status { OPTIONAL }
         }
@@ -926,27 +963,19 @@ input_description -distribution {Quantum Espresso} -package Environ -program pw.
             status { OPTIONAL }
         }
 
-        var stype -type INTEGER {
-            default { 2 }
+        var switching_function -type CHARACTER {
+            default { 'sin' }
             info {
-            The shape of the environment region is defined according to a specific switching function 
-            of the electronic density:
+            Switching function used to build the solvent interface from the density. Only used
+            when solvent_mode = 'electronic' | 'full'.
 
-            stype .EQ. 0 : Original switching function from Fattebert and Gygi.
-                           Requires two parameters: rhomax and tbeta
-            stype .EQ. 1 : Optimally smooth switching function from the SCCS method, redefined for the 
-                           non-electrostatic part.
-                           Requires two parameters: rhomax and rhomin
-            stype .EQ. 2 : Optimally smooth switching function from the SCCS method of Andreussi et al.
-                           Requires two parameters: rhomax and rhomin
-            }
-            status { OPTIONAL }
-        }
-
-        var tbeta -type REAL {
-            default { 4.8D0 }
-            info {
-            Second parameter of the density-dependent interface function, when stype=0.
+            'sin'  : Optimally smooth switching function from the SCCS method of Andreussi et al.
+                     Requires two parameters: rhomax and rhomin
+            'erfc' : complementary error function of the logarithm of the density,
+                     s(rho) = 0.5 * erfc( ln(rho/rhothr) / (rhospread * sqrt(2)) ),
+                     as in K. Mathew et al., J. Chem. Phys. 140, 084106 (2014),
+                     https://doi.org/10.1063/1.4865107
+                     Requires two parameters: rhothr and rhospread
             }
             status { OPTIONAL }
         }

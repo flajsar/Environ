@@ -352,6 +352,7 @@ CONTAINS
         !--------------------------------------------------------------------------------
         !
         solvent_mode = 'electronic'
+        switching_function = 'sin' ! original SCCS switching function
         !
         radius_mode = 'uff'
         alpha = 1.D0
@@ -360,6 +361,8 @@ CONTAINS
         !
         rhomax = 0.005
         rhomin = 0.0001
+        rhothr = 0.000685D0
+        rhospread = 0.7D0
         !
         corespread = -0.5D0
         !
@@ -379,6 +382,7 @@ CONTAINS
         field_min = 2.D0
         !
         electrolyte_mode = 'electronic'
+        electrolyte_switching_function = 'sin' ! original SCCS switching function
         !
         electrolyte_distance = 0.D0
         electrolyte_spread = 0.5D0
@@ -388,6 +392,8 @@ CONTAINS
         !
         electrolyte_rhomax = 0.005D0
         electrolyte_rhomin = 0.0001D0
+        electrolyte_rhothr = 0.000685D0
+        electrolyte_rhospread = 0.7D0
         !
         electrolyte_alpha = 1.D0
         electrolyte_softness = 0.5D0
@@ -538,9 +544,15 @@ CONTAINS
         !
         CALL env_mp_bcast(solvent_mode, io%node, io%comm)
         !
+        CALL env_mp_bcast(switching_function, io%node, io%comm)
+        !
         CALL env_mp_bcast(rhomax, io%node, io%comm)
         !
         CALL env_mp_bcast(rhomin, io%node, io%comm)
+        !
+        CALL env_mp_bcast(rhothr, io%node, io%comm)
+        !
+        CALL env_mp_bcast(rhospread, io%node, io%comm)
         !
         CALL env_mp_bcast(radius_mode, io%node, io%comm)
         !
@@ -578,6 +590,8 @@ CONTAINS
         !
         CALL env_mp_bcast(electrolyte_mode, io%node, io%comm)
         !
+        CALL env_mp_bcast(electrolyte_switching_function, io%node, io%comm)
+        !
         CALL env_mp_bcast(electrolyte_distance, io%node, io%comm)
         !
         CALL env_mp_bcast(electrolyte_spread, io%node, io%comm)
@@ -589,6 +603,10 @@ CONTAINS
         CALL env_mp_bcast(electrolyte_rhomax, io%node, io%comm)
         !
         CALL env_mp_bcast(electrolyte_rhomin, io%node, io%comm)
+        !
+        CALL env_mp_bcast(electrolyte_rhothr, io%node, io%comm)
+        !
+        CALL env_mp_bcast(electrolyte_rhospread, io%node, io%comm)
         !
         CALL env_mp_bcast(electrolyte_alpha, io%node, io%comm)
         !
@@ -881,9 +899,25 @@ CONTAINS
         !
         IF (.NOT. allowed) CALL io%invalid_opt(routine, 'solvent_mode', solvent_mode)
         !
+        allowed = .FALSE.
+        !
+        DO i = 1, SIZE(switching_function_allowed)
+            !
+            IF (TRIM(switching_function) == switching_function_allowed(i)) &
+                allowed = .TRUE.
+            !
+        END DO
+        !
+        IF (.NOT. allowed) &
+            CALL io%invalid_opt(routine, 'switching_function', switching_function)
+        !
         IF (rhomax < 0.0_DP) CALL io%error(routine, "rhomax out of range", 1)
         !
         IF (rhomin < 0.0_DP) CALL io%error(routine, "rhomin out of range", 1)
+        !
+        IF (rhothr <= 0.0_DP) CALL io%error(routine, "rhothr out of range", 1)
+        !
+        IF (rhospread <= 0.0_DP) CALL io%error(routine, "rhospread out of range", 1)
         !
         IF (rhomax < rhomin) CALL io%error(routine, "Inconsistent rhomax and rhomin", 1)
         !
@@ -942,6 +976,19 @@ CONTAINS
         IF (.NOT. allowed) &
             CALL io%invalid_opt(routine, 'electrolyte_mode', electrolyte_mode)
         !
+        allowed = .FALSE.
+        !
+        DO i = 1, SIZE(electrolyte_switching_function_allowed)
+            !
+            IF (TRIM(electrolyte_switching_function) == &
+                electrolyte_switching_function_allowed(i)) allowed = .TRUE.
+            !
+        END DO
+        !
+        IF (.NOT. allowed) &
+            CALL io%invalid_opt(routine, 'electrolyte_switching_function', &
+                                electrolyte_switching_function)
+        !
         IF (electrolyte_distance < 0.0_DP) &
             CALL io%error(routine, "electrolyte_distance out of range", 1)
         !
@@ -957,6 +1004,12 @@ CONTAINS
         IF (electrolyte_rhomax < electrolyte_rhomin) &
             CALL io%error(routine, &
                           "Inconsistent electrolyte_rhomax and electrolyte_rhomin", 1)
+        !
+        IF (electrolyte_rhothr <= 0.0_DP) &
+            CALL io%error(routine, "electrolyte_rhothr out of range", 1)
+        !
+        IF (electrolyte_rhospread <= 0.0_DP) &
+            CALL io%error(routine, "electrolyte_rhospread out of range", 1)
         !
         IF (electrolyte_alpha <= 0.0_DP) &
             CALL io%error(routine, "electrolyte_alpha out of range", 1)
@@ -1302,18 +1355,24 @@ CONTAINS
                 env_pressure = -0.36D0
                 rhomax = 0.005
                 rhomin = 0.0001
+                rhospread = 0.7D0
+                rhothr = 0.000685D0
                 !
             CASE ('water-cation') ! SCCS for cations
                 env_surface_tension = 5.D0
                 env_pressure = 0.125D0
                 rhomax = 0.0035
                 rhomin = 0.0002
+                rhospread = 0.535D0
+                rhothr = 0.000832D0
                 !
             CASE ('water-anion') ! SCCS for cations
                 env_surface_tension = 0.D0
                 env_pressure = 0.45D0
                 rhomax = 0.0155
                 rhomin = 0.0024
+                rhospread = 0.356D0
+                rhothr = 0.00616D0
                 !
             END SELECT
             !
